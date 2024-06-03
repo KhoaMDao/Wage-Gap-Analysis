@@ -1,0 +1,117 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+```{r}
+library(dplyr)
+df <- read.csv("Data/data_clean.csv")
+df<- subset(df, select = -EMPSTAT )
+```
+
+Converting Dtypes
+```{r ,echo = False}
+df$SEX <- factor(df$SEX)
+df$RACE <- factor(df$RACE)
+df$DEGFIELD <- factor(df$DEGFIELD)
+df$PWSTATE2 <- factor(df$PWSTATE2)
+summary(df)
+```
+
+Re-coding Categorical Variables
+```{r}
+# Clustering Degree Field
+df <- df %>%
+  mutate(DEGFIELD_cluster = case_when(
+    DEGFIELD %in% c(21, 24, 25, 36, 37, 51, 50) ~ "STEM",
+    DEGFIELD %in% c(61) ~ "Health Sciences",
+    DEGFIELD %in% c(11, 62, 56, 57, 59, 22) ~ "Business and Industry",
+    DEGFIELD %in% c(15, 55, 33, 34, 64, 48, 49, 52, 54) ~ "Social Sciences and Humanities",
+    DEGFIELD %in% c(23, 35) ~ "Education and Teaching",
+    DEGFIELD %in% c(14, 60) ~ "Arts and Design",
+    DEGFIELD %in% c(32, 53) ~ "Legal and Criminal Studies",
+    DEGFIELD %in% c(13, 41) ~ "Science and Environmental Studies",
+    DEGFIELD %in% c(40) ~ "Interdisciplinary Studies",
+    DEGFIELD %in% c(19, 20) ~ "Communication and Media",
+    DEGFIELD %in% c(58, 38) ~ "Technical and Vocational",
+    DEGFIELD %in% c(26) ~ "Linguistics and Foreign Languages",
+    DEGFIELD %in% c(29) ~ "Family and Consumer Studies",
+  ))
+
+# Clustering Place of Work - State
+df <- df %>%
+  mutate(WorkRegion = case_when(
+    PWSTATE2 %in% c(09, 23, 33, 50, 25, 44, 36, 34, 42, 10, 24) ~ "Northeast Region",
+    PWSTATE2 %in% c(39, 18, 17, 26, 55, 27, 19, 29, 38, 46, 31, 20) ~ "Midwest Region",
+    PWSTATE2 %in% c(54, 51, 21, 47, 37, 45, 13, 01, 28, 05, 22, 12, 48, 40) ~ "South Region",
+    PWSTATE2 %in% c(16, 30, 56, 32, 49, 08, 04, 35, 02, 53, 41, 06, 15) ~ "West Region",
+    PWSTATE2 %in% c(11, 72, 73, 74) ~ "Other U.S. Territories and Special Areas",
+    PWSTATE2 %in% c(80, 81, 82, 83, 84, 85, 86, 87, 88) ~ "International",
+  ))
+
+df$DEGFIELD_cluster <- as.factor(df$DEGFIELD_cluster)
+df$WorkRegion <- as.factor(df$WorkRegion)
+df <- subset(df, select = -c(PWSTATE2, DEGFIELD))
+
+# Recode the RACE variable and convert it to a factor with appropriate labels
+df<- df %>%
+  mutate(RACE = factor(RACE,
+                       levels = 1:9,
+                       labels = c("White",
+                                  "Black/African American",
+                                  "American Indian or Alaska Native",
+                                  "Chinese",
+                                  "Japanese",
+                                  "Other Asian or Pacific Islander",
+                                  "Other race, nec",
+                                  "Two major races",
+                                  "Three or more major races")))
+
+# Recode the SEX variable and convert it to a factor with appropriate labels
+df <- df %>%
+  mutate(SEX = factor(SEX,
+                      levels = c(1, 2),
+                      labels = c("Male",
+                                 "Female")))
+
+summary(df)
+write.csv(df, "Data/data_recoded.csv", row.names = FALSE)
+```
+
+Incorporating Weights (writes very large df)
+```{r}
+#expanded_data <- df %>%
+  #slice(rep(1:n(), each = 1, times = PERWT))
+#write.csv(expanded_data, "Data/data_weights.csv", row.names = FALSE)
+```
+
+Summary Stats Of Weighted Data
+```{r}
+df_weighted <- read.csv('Data/data_weights.csv')
+df_weighted$SEX <- factor(df_weighted$SEX)
+df_weighted$RACE <- factor(df_weighted$RACE)
+df_weighted$DEGFIELD_cluster <- factor(df_weighted$DEGFIELD_cluster)
+df_weighted$WorkRegion <- factor(df_weighted$WorkRegion)
+summary(df_weighted)
+dim(df_weighted)
+
+```
+
+Sampling smaller subset for regresssion
+```{r}
+# Randomly sample 50% of the dataset
+df_sampled <- df_weighted %>% 
+  sample_frac(0.2)
+
+# Check the dimensions of the new dataset to confirm
+dim(df_sampled)
+
+#mod1 <- lm(INCTOT ~ AGE + I(AGE^2) + RACE + DEGFIELD + UHRSWORK + PWSTATE2, data=df_sampled)
+#summary(mod1)
+summary(df)
+#Works much better
+mod1 <- lm(INCTOT ~ AGE + I(AGE^2) + SEX + RACE + DEGFIELD_cluster + UHRSWORK + WorkRegion + AGE:SEX+ I(AGE^2):SEX + SEX:RACE,  data=df, weights = PERWT)
+summary(mod1)
+```
+
+

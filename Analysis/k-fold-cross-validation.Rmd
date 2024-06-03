@@ -1,0 +1,84 @@
+---
+title: "IEProject2"
+output: pdf_document
+date: "2024-05-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(xtable)
+df <- read.csv("../Data/data_weights.csv")
+#df <- df_sampled
+```
+
+```{r}
+library(caret)
+# Removing rows where INCTOT is less than or equal to zero
+df <- df[df$INCTOT > 0, ]
+
+# Define the control method: 10-fold cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# Define the model
+model <- train(I(log(INCTOT)) ~ AGE + I(log(AGE^2)) + SEX + RACE + DEGFIELD + UHRSWORK + WorkRegion,
+               data = df,
+               trControl = train_control,
+               method = "lm")
+
+# Summary of the model
+print(model)
+```
+Histogram, Boxplot, and Q-Q Plot of the Residuals
+```{r}
+residuals <- residuals(model)
+
+# Histogram of residuals
+hist(residuals, breaks = 30, main = "Histogram of Residuals", xlab = "Residuals", col = "lightblue", border = "blue")
+
+# Boxplot of residuals
+boxplot(residuals, main = "Boxplot of Residuals", ylab = "Residuals", horizontal=TRUE)
+
+# Q-Q plot of residuals
+qqnorm(residuals)
+qqline(residuals, col = "red")
+```
+
+Residuals as a Function of Fitted Values $\hat{Y}$
+```{r}
+fitted_values <- fitted(model)
+
+# Plot of residuals vs. fitted values
+plot(fitted_values, residuals, main = "Residuals vs. Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+```
+
+Summary Table of Regression Coefficients
+```{r}
+# Summary of model coefficients
+summary_model <- summary(model)
+coef_table <- summary_model$coefficients  
+
+print(coef_table)
+```
+
+Measure of Model Fit
+```{r}
+cat("R-squared:", summary(model)$r.squared, "\n")
+cat("Adjusted R-squared:", summary(model)$adj.r.squared, "\n")
+```
+
+```{r}
+latex_table <- xtable(summary_model)
+
+print(latex_table, include.rownames = TRUE)
+```
+
+
+
+
+

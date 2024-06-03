@@ -1,0 +1,126 @@
+---
+title: "jake_summary_stats"
+author: "Jake Birnbach"
+date: "2024-04-26"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+original_par <- par()
+
+#df <- read.csv("Data/data_weights.csv")
+#dim(df)
+#set.seed(1)
+#df_sampled <- df %>% 
+# sample_frac(0.001)
+
+df_sampled <- read.csv("Data/data_sample_weights.csv")
+df_sampled <- subset(df_sampled, select= -PERWT)
+#write.csv(df_sampled, "Data/data_sample_weights.csv", row.names = FALSE)
+
+n <- dim(df_sampled)[1]
+
+df_sampled$SEX <- factor(df_sampled$SEX)
+df_sampled$RACE <- factor(df_sampled$RACE)
+df_sampled$DEGFIELD <- factor(df_sampled$DEGFIELD)
+df_sampled$WorkRegion <- factor(df_sampled$WorkRegion)
+```
+
+A histogram of the outcome. You may use a kernel density plot instead, provided you
+clearly explain which kernel you’re using. If your outcome is binary, you do not need
+a histogram. Instead, just report the number and proportion of the observations that
+had an outcome of 1. If you want to use a plot to do this, use a barplot
+```{r}
+hist(df_sampled$INCTOT, xlab="Total Income ($)", ylab="Frequency", main="Distribution of Total Personal Income")
+```
+
+Total personal income appears to be significantly right skewed which is expected.
+Preforming a log transformation to make it normally distributed
+
+```{r}
+length(df_sampled$INCTOT[df_sampled$INCTOT <= 0])/n
+df_sampled$INCTOT <- log(df_sampled$INCTOT)
+df_sampled <- df_sampled[!is.na(df_sampled$INCTOT), ]
+
+income = df_sampled$INCTOT
+hist(df_sampled$INCTOT, xlab="Log Total Income ($)", ylab="Frequency", main="Distribution of Log Income", freq=FALSE, breaks=80)
+curve(dnorm(x, mean(income), sd(income, na.rm = TRUE)), from=0, to=15, col='red', add=TRUE)
+```
+
+```{r}
+summary(df_sampled)
+```
+
+Measures of central tendency (e.g., mean, median) and spread (e.g., standard deviation,
+quartiles, range) of each variable. Categorical variables do not have central tendency
+or spread. So, just report the number and proportion of observations in each category.
+If you want to use a plot to do this, use a barplot
+```{r}
+par(original_par)
+
+#SEX
+summary(df_sampled$SEX)/n
+plot(df_sampled$SEX, xlab="Sex", ylab="Count", main="Distribution of Men vs. Women")
+
+#AGE
+summary(df_sampled$AGE)
+paste("Sdev Age: ",sd(df_sampled$AGE))
+hist(df_sampled$AGE, xlab="Age (Years)", main="Distribution of Ages")
+
+
+#RACE
+par(mar=c(5, 12, 4, 2)+3)
+race_table <- table(df_sampled$RACE)
+summary(df_sampled$RACE)/n
+barplot(sort(race_table), xlab="Count", main="Distribution of Races", horiz=TRUE, las=1)
+par(original_par)
+
+
+#UHSWORK
+summary(df_sampled$UHRSWORK)
+paste("Sdev UHRSWORK: ",sd(df_sampled$UHRSWORK))
+hist(df_sampled$UHRSWORK, xlab="Hours Worked", main="Distribution of Hours Worked Per Week")
+
+#WorkRegion
+workregion_table <- table(df_sampled$WorkRegion)  # Create a frequency table
+
+summary(df_sampled$WorkRegion)/n
+barplot(sort(workregion_table), xlab="Count", main="Distribution of Working Regions", horiz=TRUE, las=1)
+
+#DEGFIELD
+par(mar=c(5, 12, 4, 2)+5)
+summary(df_sampled$DEGFIELD)/n
+plot(df_sampled$DEGFIELD, xlab="Degree Field", ylab="Frequency", main="Distribution of Degree Fields")
+par(mar=c(5, 12, 4, 2)+3)
+
+
+# Assuming df_sampled$DEGFIELD is a factor or can be treated as categorical data
+degree_field_table <- table(df_sampled$DEGFIELD)  # Create a frequency table
+
+# Adjust margins (bottom, left, top, right in number of lines of text)
+par(mar=c(5, 12, 4, 2))
+
+# Create a barplot
+barplot(sort(degree_field_table), 
+        main="Distribution of Degree Fields", 
+        xlab="Count",
+        las=1,
+        horiz=TRUE)  # Setting las=2 makes the labels perpendicular to the axis
+
+par(original_par)
+
+```
+
+
+
+A scatterplot matrix of your variables. The R function pairs will create this.
+```{r}
+pairs(df_sampled)
+```
+

@@ -1,0 +1,67 @@
+---
+title: "IEProject"
+output: pdf_document
+date: "2024-04-17"
+---
+
+```{r}
+library(dplyr)
+df <- read.csv("data_sample_weights.csv")
+#df <- df_sampled
+```
+
+```{r}
+pairs(df %>% dplyr::select_if(is.numeric), col = "blue")
+```
+
+
+Fitting the linear model 
+```{r}
+# Removing rows where INCTOT is less than or equal to zero
+df <- df[df$INCTOT > 0, ]
+
+# Cross-validation (simple approach using a split sample)
+set.seed(123)
+train_indices <- sample(1:nrow(df), 0.8 * nrow(df))  
+train_data <- df[train_indices, ]
+test_data <- df[-train_indices, ]
+
+mod_final <- lm(I(log(INCTOT)) ~ AGE + I(log(AGE^2)) + SEX + RACE + DEGFIELD + UHRSWORK + WorkRegion, data=train_data)
+
+# Predict on test data
+predictions <- predict(mod_final, newdata=test_data)
+test_residuals <- log(test_data$INCTOT) - predictions
+
+# Calculate RMSE for the test set
+(test_rmse <- sqrt(mean(test_residuals^2)))
+
+```
+
+
+Histogram, boxplot, and Q-Q plot (with reference line) of the residuals.
+```{r}
+epsilon_hat <- residuals(mod_final)
+
+# Create a histogram of the residuals
+hist(epsilon_hat, main = "Histogram of Residuals", xlab = "Residuals", col = "lightblue", border = "blue") 
+
+# Create a boxplot of the residuals
+boxplot(epsilon_hat, main = "Boxplot of Residuals", ylab = "Residuals", horizontal=TRUE) 
+
+# Create a Q-Q plot of the residuals
+qqnorm(epsilon_hat, main = "Q-Q Plot of Residuals")
+qqline(epsilon_hat, col = "red")
+
+```
+
+A plot of the residuals as a function of $\hat{Y}$. 
+```{r}
+plot(fitted(mod_final), residuals(mod_final), xlab="Fitted Values", ylab="Residuals", main="Residuals vs. Fitted Values")
+abline(h=0, col="red")
+```
+
+A table of the estimated regression coefficients ($\hat{\beta}_k$), their standard errors, and the results of any hypothesis tests. 
+```{r}
+summary(mod_final)
+```
+

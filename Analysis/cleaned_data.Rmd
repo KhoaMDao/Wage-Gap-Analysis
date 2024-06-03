@@ -1,0 +1,46 @@
+---
+title: "Data Cleaning"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("dplyr")
+library(dplyr)
+```
+
+Loading Data
+```{r ,echo=FALSE}
+df_raw <- read.csv("Data/data_raw.csv")
+head(df_raw)
+#Dropping HISPAND, DEGFIELDD,  column
+df_clean<- subset(df_raw, select = -c(HISPAND,RACED, DEGFIELDD, EMPSTATD, IND, EDUC, STATEICP, HISPAN, EDUCD, INCWAGE) )
+summary(df_clean)
+```
+
+Cleaning For Missing Data: also dropping unemployed individuals from analysis
+```{r ,echo=False}
+df_clean <- filter(df_clean, AGE != 999, DEGFIELD != 0, PWSTATE2 != 0, INCTOT != 9999999, EMPSTAT==1)
+```
+
+Converting Dtypes
+```{r ,echo = False}
+df_clean$SEX <- factor(df_clean$SEX)
+df_clean$RACE <- factor(df_clean$RACE)
+df_clean$DEGFIELD <- factor(df_clean$DEGFIELD)
+df_clean$EMPSTAT <- factor(df_clean$EMPSTAT)
+df_clean$PWSTATE2 <- factor(df_clean$PWSTATE2)
+summary(df_clean)
+```
+
+Outputing Cleaned File
+```{r ,echo = False}
+write.csv(df_clean, "Data/data_clean.csv", row.names = FALSE)
+#change this to see dataframe if needed
+rm(df_raw, df_clean)
+```
+

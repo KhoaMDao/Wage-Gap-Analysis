@@ -1,0 +1,353 @@
+---
+title: "IEProject"
+output: pdf_document
+date: "2024-05-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("dplyr")
+library(dplyr)
+```
+
+Loading Data
+
+```{r ,echo=FALSE}
+df_raw <- read.csv("Data/data_raw.csv")
+head(df_raw)
+#Dropping HISPAND, DEGFIELDD,  column
+df_clean<- subset(df_raw, select = -c(HISPAND,RACED, DEGFIELDD, EMPSTATD, IND, EDUC, STATEICP, HISPAN, EDUCD, INCWAGE) )
+summary(df_clean)
+```
+
+Cleaning For Missing Data: also dropping unemployed individuals from analysis
+
+```{r ,echo=False}
+df_clean <- filter(df_clean, AGE != 999, DEGFIELD != 0, PWSTATE2 != 0, INCTOT != 9999999, EMPSTAT==1)
+```
+
+Converting Dtypes
+
+```{r ,echo = False}
+df_clean$SEX <- factor(df_clean$SEX)
+df_clean$RACE <- factor(df_clean$RACE)
+df_clean$DEGFIELD <- factor(df_clean$DEGFIELD)
+df_clean$EMPSTAT <- factor(df_clean$EMPSTAT)
+df_clean$PWSTATE2 <- factor(df_clean$PWSTATE2)
+summary(df_clean)
+```
+
+Outputing Cleaned File
+
+```{r ,echo = False}
+write.csv(df_clean, "Data/data_clean.csv", row.names = FALSE)
+#change this to see dataframe if needed
+rm(df_raw, df_clean)
+```
+
+Converting Dtypes
+
+```{r ,echo = False}
+df <- read.csv("Data/data_clean.csv")
+df<- subset(df, select = -EMPSTAT )
+
+df$SEX <- factor(df$SEX)
+df$RACE <- factor(df$RACE)
+df$DEGFIELD <- factor(df$DEGFIELD)
+df$PWSTATE2 <- factor(df$PWSTATE2)
+summary(df)
+```
+
+Re-coding Categorical Variables
+
+```{r}
+# Clustering Degree Field into broader categories
+df <- df %>%
+  mutate(DEGFIELD_cluster = case_when(
+    DEGFIELD %in% c(21, 24, 25, 36, 37, 51, 50) ~ "STEM",
+    DEGFIELD %in% c(61) ~ "Health Sciences",
+    DEGFIELD %in% c(11, 62, 56, 57, 59, 22) ~ "Business and Industry",
+    DEGFIELD %in% c(15, 55, 33, 34, 64, 48, 49, 52, 54) ~ "Social Sciences and Humanities",
+    DEGFIELD %in% c(23, 35) ~ "Education and Teaching",
+    DEGFIELD %in% c(14, 60) ~ "Arts and Design",
+    DEGFIELD %in% c(32, 53) ~ "Legal and Criminal Studies",
+    DEGFIELD %in% c(13, 41) ~ "Science and Environmental Studies",
+    DEGFIELD %in% c(40) ~ "Interdisciplinary Studies",
+    DEGFIELD %in% c(19, 20) ~ "Communication and Media",
+    DEGFIELD %in% c(58, 38) ~ "Technical and Vocational",
+    DEGFIELD %in% c(26) ~ "Linguistics and Foreign Languages",
+    DEGFIELD %in% c(29) ~ "Family and Consumer Studies",
+  ))
+
+# Clustering Place of Work - State
+df <- df %>%
+  mutate(WorkRegion = case_when(
+    PWSTATE2 %in% c(09, 23, 33, 50, 25, 44, 36, 34, 42, 10, 24) ~ "Northeast Region",
+    PWSTATE2 %in% c(39, 18, 17, 26, 55, 27, 19, 29, 38, 46, 31, 20) ~ "Midwest Region",
+    PWSTATE2 %in% c(54, 51, 21, 47, 37, 45, 13, 01, 28, 05, 22, 12, 48, 40) ~ "South Region",
+    PWSTATE2 %in% c(16, 30, 56, 32, 49, 08, 04, 35, 02, 53, 41, 06, 15) ~ "West Region",
+    PWSTATE2 %in% c(11, 72, 73, 74) ~ "Other U.S. Territories and Special Areas",
+    PWSTATE2 %in% c(80, 81, 82, 83, 84, 85, 86, 87, 88) ~ "International",
+  ))
+
+df$DEGFIELD_cluster <- as.factor(df$DEGFIELD_cluster)
+df$WorkRegion <- as.factor(df$WorkRegion)
+df <- subset(df, select = -c(PWSTATE2, DEGFIELD))
+
+# Recode the RACE variable and convert it to a factor with appropriate labels
+df<- df %>%
+  mutate(RACE = factor(RACE,
+                       levels = 1:9,
+                       labels = c("White",
+                                  "Black/African American",
+                                  "American Indian or Alaska Native",
+                                  "Chinese",
+                                  "Japanese",
+                                  "Other Asian or Pacific Islander",
+                                  "Other race, nec",
+                                  "Two major races",
+                                  "Three or more major races")))
+
+# Recode the SEX variable and convert it to a factor with appropriate labels
+df <- df %>%
+  mutate(SEX = factor(SEX,
+                      levels = c(1, 2),
+                      labels = c("Male",
+                                 "Female")))
+
+summary(df)
+write.csv(df, "Data/data_recoded.csv", row.names = FALSE)
+```
+
+Incorporating Weights (writes very large df)
+
+```{r}
+#expanded_data <- df %>%
+  #slice(rep(1:n(), each = 1, times = PERWT))
+#write.csv(expanded_data, "Data/data_weights.csv", row.names = FALSE)
+```
+
+Summary Stats Of Weighted Data
+
+```{r}
+df_weighted <- read.csv('Data/data_weights.csv')
+df_weighted$SEX <- factor(df_weighted$SEX)
+df_weighted$RACE <- factor(df_weighted$RACE)
+df_weighted$DEGFIELD_cluster <- factor(df_weighted$DEGFIELD_cluster)
+df_weighted$WorkRegion <- factor(df_weighted$WorkRegion)
+summary(df_weighted)
+dim(df_weighted)
+```
+
+Sampling a smaller subset
+
+```{r}
+original_par <- par()
+
+#df <- read.csv("Data/data_weights.csv")
+#dim(df)
+#set.seed(1)
+#df_sampled <- df %>% 
+# sample_frac(0.001)
+
+df_sampled <- read.csv("Data/data_sample_weights.csv")
+df_sampled <- subset(df_sampled, select= -PERWT)
+#write.csv(df_sampled, "Data/data_sample_weights.csv", row.names = FALSE)
+
+n <- dim(df_sampled)[1]
+
+df_sampled$SEX <- factor(df_sampled$SEX)
+df_sampled$RACE <- factor(df_sampled$RACE)
+df_sampled$DEGFIELD <- factor(df_sampled$DEGFIELD)
+df_sampled$WorkRegion <- factor(df_sampled$WorkRegion)
+```
+
+A histogram of the outcome.
+
+```{r}
+hist(df_sampled$INCTOT, xlab="Total Income ($)", ylab="Frequency", main="Distribution of Total Personal Income")
+```
+
+Total personal income appears to be significantly right skewed which is expected. Preforming a log transformation to make it normally distributed
+
+```{r}
+length(df_sampled$INCTOT[df_sampled$INCTOT <= 0])/n
+df_sampled$INCTOT <- log(df_sampled$INCTOT)
+df_sampled <- df_sampled[!is.na(df_sampled$INCTOT), ]
+
+income = df_sampled$INCTOT
+hist(df_sampled$INCTOT, xlab="Log Total Income ($)", ylab="Frequency", main="Distribution of Log Income", freq=FALSE, breaks=80)
+curve(dnorm(x, mean(income), sd(income, na.rm = TRUE)), from=0, to=15, col='red', add=TRUE)
+```
+
+```{r}
+summary(df_sampled)
+```
+
+Measures of central tendency (e.g., mean, median) and spread (e.g., standard deviation, quartiles, range) of each variable. Categorical variables do not have central tendency or spread. So, just report the number and proportion of observations in each category. If you want to use a plot to do this, use a barplot
+
+```{r}
+par(original_par)
+
+#SEX
+summary(df_sampled$SEX)/n
+plot(df_sampled$SEX, xlab="Sex", ylab="Count", main="Distribution of Men vs. Women")
+
+#AGE
+summary(df_sampled$AGE)
+paste("Sdev Age: ",sd(df_sampled$AGE))
+hist(df_sampled$AGE, xlab="Age (Years)", main="Distribution of Ages")
+
+
+#RACE
+par(mar=c(5, 12, 4, 2)+3)
+race_table <- table(df_sampled$RACE)
+summary(df_sampled$RACE)/n
+barplot(sort(race_table), xlab="Count", main="Distribution of Races", horiz=TRUE, las=1)
+par(original_par)
+
+
+#UHSWORK
+summary(df_sampled$UHRSWORK)
+paste("Sdev UHRSWORK: ",sd(df_sampled$UHRSWORK))
+hist(df_sampled$UHRSWORK, xlab="Hours Worked", main="Distribution of Hours Worked Per Week")
+
+#WorkRegion
+workregion_table <- table(df_sampled$WorkRegion)  # Create a frequency table
+
+summary(df_sampled$WorkRegion)/n
+barplot(sort(workregion_table), xlab="Count", main="Distribution of Working Regions", horiz=TRUE, las=1)
+
+#DEGFIELD
+par(mar=c(5, 12, 4, 2)+5)
+summary(df_sampled$DEGFIELD)/n
+plot(df_sampled$DEGFIELD, xlab="Degree Field", ylab="Frequency", main="Distribution of Degree Fields")
+par(mar=c(5, 12, 4, 2)+3)
+
+
+# Assuming df_sampled$DEGFIELD is a factor or can be treated as categorical data
+degree_field_table <- table(df_sampled$DEGFIELD)  # Create a frequency table
+
+# Adjust margins (bottom, left, top, right in number of lines of text)
+par(mar=c(5, 12, 4, 2))
+
+# Create a barplot
+barplot(sort(degree_field_table), 
+        main="Distribution of Degree Fields", 
+        xlab="Count",
+        las=1,
+        horiz=TRUE)  # Setting las=2 makes the labels perpendicular to the axis
+
+par(original_par)
+
+```
+
+A scatterplot matrix of your variables. The R function pairs will create this.
+
+```{r}
+pairs(df_sampled)
+```
+
+10-fold Cross Validation
+```{r}
+library(caret)
+# Removing rows where INCTOT is less than or equal to zero
+df_sampled <- df_sampled[df$INCTOT > 0, ]
+
+# Define the control method: 10-fold cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# Setting 'White' as the reference category
+df_sampled$RACE <- factor(df_sampled$RACE)
+df_sampled$RACE <- relevel(df_sampled$RACE, ref = "White")
+
+# Setting 'STEM' as the reference category
+df_sampled$DEGFIELD <- factor(df_sampled$DEGFIELD)
+df_sampled$DEGFIELD <- relevel(df_sampled$DEGFIELD, ref = "STEM")
+
+# Setting 'South Region' as the reference category
+df_sampled$WorkRegion <- factor(df$WorkRegion)
+df_sampled$WorkRegion <- relevel(df_sampled$WorkRegion, ref = "South Region")
+
+# Define the model
+model <- train(I(log(INCTOT)) ~ AGE + I(AGE^2) + SEX + RACE + DEGFIELD + UHRSWORK + WorkRegion,
+               data = df_sampled,
+               trControl = train_control,
+               method = "lm")
+
+# Summary of the model
+print(model)
+```
+
+Histogram, Boxplot, and Q-Q Plot of the Residuals
+
+```{r}
+residuals <- residuals(model)
+
+# Histogram of residuals
+hist(residuals, breaks = 30, main = "Histogram of Residuals", xlab = "Residuals", col = "lightblue", border = "blue")
+
+# Boxplot of residuals
+boxplot(residuals, main = "Boxplot of Residuals", ylab = "Residuals")
+
+# Q-Q plot of residuals
+qqnorm(residuals)
+qqline(residuals, col = "red")
+```
+
+Residuals as a Function of Fitted Values $\hat{Y}$
+
+```{r}
+fitted_values <- fitted(model)
+
+# Plot of residuals vs. fitted values
+plot(fitted_values, residuals, main = "Residuals vs. Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+```
+
+Summary Table of Regression Coefficients
+
+```{r}
+# Summary of model coefficients
+summary_model <- summary(model)
+coef_table <- summary_model$coefficients  
+print(coef_table)
+```
+
+Illustrating the impact of $AGE$ and $AGE^2$ on income growth 
+```{r}
+library(ggplot2)
+
+# Create a sequence of ages from 20 to 80
+age <- seq(20, 80, by = 1)
+
+# Coefficients from our model
+beta_0 <- 8.1278
+beta_1 <- 0.06465
+beta_2 <- -0.000514
+Male <- 0.239
+White <- 0
+UHRSWORK <- 0.03135*40
+Business_Industry <- -0.15008
+West_Region <- 0.14806
+
+# Calculate predicted log(INCTOT) based on the model
+predicted_log_inctot <- beta_0 + beta_1 * age + beta_2 * age^2 + Male + White + Business_Industry + UHRSWORK + West_Region
+
+# Convert log(INCTOT) to INCTOT for plotting
+predicted_inctot <- exp(predicted_log_inctot)
+
+# Create a data frame for plotting
+data <- data.frame(Age = age, Income = predicted_inctot)
+
+# Generate the plot
+ggplot(data, aes(x = Age, y = Income)) +
+  geom_line(color = "blue", size = 1.2) +
+  labs(title = "Predicted Income Across Age",
+       x = "Age",
+       y = "Predicted Income") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+```

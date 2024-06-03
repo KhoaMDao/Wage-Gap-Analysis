@@ -1,0 +1,120 @@
+---
+title: "IEProject"
+output: pdf_document
+date: "2024"
+output: pdf
+---
+
+I perform the same regression on different wealth classes to see if our input features affect the output more across classes.
+I use the sampled and weighted dataset that Jake created and un-transform the income
+```{r}
+#removing people with non-positive incomes
+df = df_sampled[df_sampled$INCTOT > 0, ]
+
+#untransforming income - there's potential data loss here (at higher inc) due to precision
+df$INCTOT = exp(df$INCTOT)
+
+#national median household income is 74,580 - good sample
+median(df$INCTOT)
+```
+
+
+We'll use some standards for splitting people into groups:
+- in poverty: < 15,060 (for an individual)
+- below average cost of living: <61,334 (for household)
+- middle income, 90% bottom of all earners: <167,639
+- high income, 90-99% highest: 167,639 - 819,324
+- top 1%: >819,324
+
+```{r}
+run_regress <- function(df_sub) {
+  mod <- lm(INCTOT ~ AGE + I(log(AGE^2)) + SEX + RACE + DEGFIELD + UHRSWORK + WorkRegion, data=df_sub)
+  return(mod)
+}
+run_regress_sex <- function(df_sub) {
+  mod <- lm(INCTOT ~ SEX, data=df_sub)
+  return(mod)
+}
+
+mod1 = run_regress(df[df$INCTOT <= 15060, ])
+mod2 = run_regress(df[df$INCTOT > 15060 & df$INCTOT <= 61334, ])
+mod3 = run_regress(df[df$INCTOT > 61334 & df$INCTOT <= 167639, ])
+mod4 = run_regress(df[df$INCTOT > 167639 & df$INCTOT <= 819324, ])
+mod5 = run_regress(df[df$INCTOT > 819324, ])
+
+mod1_s = run_regress_sex(df[df$INCTOT <= 15060, ])
+mod2_s = run_regress_sex(df[df$INCTOT > 15060 & df$INCTOT <= 61334, ])
+mod3_s = run_regress_sex(df[df$INCTOT > 61334 & df$INCTOT <= 167639, ])
+mod4_s = run_regress_sex(df[df$INCTOT > 167639 & df$INCTOT <= 819324, ])
+mod5_s = run_regress_sex(df[df$INCTOT > 819324, ])
+```
+
+Individuals in poverty:
+```{r}
+summary(mod1)
+```
+
+Individuals earning less than the cost of living but not in poverty
+```{r}
+summary(mod2)
+```
+
+Individuals that earn more than the cost of living but less than top 10%.
+```{r}
+summary(mod3)
+```
+
+Top 10% but not top 1%
+```{r}
+summary(mod4)
+```
+
+```{r}
+summary(mod5)
+```
+
+Same order but a unviariate regression on sex. Basically the same significance levels
+```{r}
+summary(mod1_s)
+summary(mod2_s)
+summary(mod3_s)
+summary(mod4_s)
+summary(mod5_s)
+```
+
+```{r}
+fitted_values1 <- fitted(mod1)
+fitted_values2 <- fitted(mod2)
+fitted_values3 <- fitted(mod3)
+fitted_values4 <- fitted(mod4)
+fitted_values5 <- fitted(mod5)
+
+residuals1 <- residuals(mod1)
+residuals2 <- residuals(mod2)
+residuals3 <- residuals(mod3)
+residuals4 <- residuals(mod4)
+residuals5 <- residuals(mod5)
+
+# Plot of residuals vs. fitted values
+plot(fitted_values1, residuals1, main = "Residuals vs. Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+
+plot(fitted_values2, residuals2, main = "Residuals vs. Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+
+plot(fitted_values3, residuals3, main = "Residuals vs. Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+
+plot(fitted_values4, residuals4, main = "Residuals vs. Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+
+plot(fitted_values5, residuals5, main = "Residuals vs. Fitted Values",
+     xlab = "Fitted Values", ylab = "Residuals")
+abline(h = 0, col = "red")
+```
+
+

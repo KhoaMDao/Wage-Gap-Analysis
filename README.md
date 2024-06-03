@@ -1,1 +1,1 @@
-# Wage-Gap-Analysis
+# STAT525-Project
